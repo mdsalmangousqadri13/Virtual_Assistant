@@ -40,7 +40,8 @@ function SignUp() {
     <div className='w-full h-[100vh] bg-cover flex justify-center items-center' 
     style={{backgroundImage:`url(${bg})`}}>
         <form className='w-[90%] h-[600px] max-w-[500px] bg-[#00000062] backdrop-blur shadow-lg
-            shadow-black flex flex-col items-center justify-center gap-[20px] px-[20px]' onSubmit={handleSignUp}>
+            shadow-black flex flex-col items-center justify-center gap-[20px] px-[20px]' 
+            onSubmit={handleSignUp}>
             <h1 className='text-white text-[30px] font-semibold mb-[30px]'>
                 Register to <span className='text-blue-400'>Virtual Assistant</span>
             </h1>
@@ -53,19 +54,25 @@ function SignUp() {
 
            <div className='w-full h-[60px] border-2 border-white bg-transparent text-white rounded-full
             text-[18px] relative'>
-            <input type={showPassword? "text" : "password"} placeholder='password' className='w-full h-full rounded-full outline-none
-            bg-transparent placeholder-gray-300 px-[20px] py-[10px]'required onChange={(e)=>setPassword(e.target.value)} value={password}/>
-            {!showPassword && <IoIosEye className='absolute top-[18px] right-[20px] w-[25px] h-[25px] text-[white] cursor-pointer'
+            <input type={showPassword? "text" : "password"} placeholder='password' className='w-full h-full 
+            rounded-full outline-none
+            bg-transparent placeholder-gray-300 px-[20px] py-[10px]'required onChange={
+              (e)=>setPassword(e.target.value)} value={password}/>
+            {!showPassword && <IoIosEye className='absolute top-[18px] right-[20px] w-[25px] h-[25px] 
+            text-[white] cursor-pointer'
             onClick={()=>setShowPassword(true)}/>}
 
-            {showPassword && <IoMdEyeOff  className='absolute top-[18px] right-[20px] w-[25px] h-[25px] text-[white] cursor-pointer'
+            {showPassword && <IoMdEyeOff  className='absolute top-[18px] right-[20px] w-[25px] h-[25px] 
+            text-[white] cursor-pointer'
             onClick={()=>setShowPassword(false)}/>}
            </div>
            {error.length>0 && <p className='text-red-500 text-[20px]' >*{error}</p>}
-          <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold bg-white rounded-full text-[19px]'
+          <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold bg-white 
+          rounded-full text-[19px]'
           disabled={loading}>{loading?"Loading": "sign Up"}</button>
 
-          <p className='text-[white] text-[18px] cursor-pointer' onClick={() =>navigate("/signin")}>Already have an account ? <span className='text-blue-400'>Sign In</span></p>
+          <p className='text-[white] text-[18px] cursor-pointer' onClick={() =>navigate("/signin")}>
+            Already have an account ? <span className='text-blue-400'>Sign In</span></p>
 
         </form>
     </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useEffect } from 'react'
+import React, { createContext, useEffect, useState } from 'react'
 export const userDataContext = createContext()
 import axios from "axios"
 
@@ -6,6 +6,9 @@ function UserContext({children}) {
 
     const serverUrl = "http://localhost:3000"
     const [userData, setUserData] = React.useState(null)
+    const [frontendImage, setFrontendImage] = useState(null);
+    const [backendImage, setBackendImage] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null)
 
     const handleCurrentUser = async () => {
       try {
@@ -23,7 +26,8 @@ function UserContext({children}) {
     }, [])
 
     const value = {
-        serverUrl, userData, setUserData
+        serverUrl, userData, setUserData, backendImage, setBackendImage, frontendImage, setFrontendImage,
+        selectedImage, setSelectedImage
     }
 
   return (
