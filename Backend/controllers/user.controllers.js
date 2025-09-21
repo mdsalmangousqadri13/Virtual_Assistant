@@ -15,7 +15,7 @@ export const getCurrentUsers = async (req, res) => {
 }
 
 
-export const updateAssistant = async () => {
+export const updateAssistant = async (req, res) => {
     try {
         const {assistantName, imageUrl}= req.body 
         let assistantImage;
@@ -27,10 +27,10 @@ export const updateAssistant = async () => {
 
         const user = await User.findByIdAndUpdate(req.userId,{
             assistantName, assistantImage
-        },{new:true}). select("-password")
+        },{new:true}).select("-password")
         return res.status(200).json(user)
 
     } catch (error) {
-         return res.status(500).json({ message: "update assistnat error" });
+         return res.status(500).json({ message: "update assistants error" });
     }
 }
