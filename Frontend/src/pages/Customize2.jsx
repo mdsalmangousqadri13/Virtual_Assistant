@@ -12,6 +12,7 @@ const Customize2 = () => {
     const navigate = useNavigate()
 
     const handleUpdateAssistant = async ()=>{
+      setLoading(true)
       try {
         let formData = new FormData()
         formData.append("assistantName", assistantName)
@@ -21,10 +22,12 @@ const Customize2 = () => {
           formData.append("imageUrl", selectedImage)
         }
         const result = await axios.post(`${serverUrl}/api/user/update`, formData, {withCredentials:true})
-
+        setLoading(false)
         console.log(result.data)
         setUserData(result.data)
+        navigate("/")
       } catch (error) {
+        setLoading(false)
         console.log(error)
       }
     }
@@ -32,7 +35,8 @@ const Customize2 = () => {
   return (
     <div className='w-full h-[100vh] bg-gradient-to-t from-[black] to-[#030353] flex justify-center 
     items-center flex-col p-[20px] relative'>
-    <MdKeyboardBackspace className='absolute top-[30px] left-[30px] text-white w-[25px] h-[25px] cursor-pointer' onClick={()=>navigate("/customize")} />
+    <MdKeyboardBackspace className='absolute top-[30px] left-[30px] text-white w-[25px] h-[25px] 
+    cursor-pointer' onClick={()=>navigate("/customize")} />
         <h1 className='text-white mb-[40px] text-[30px] text-center'>Enter Your <span className='
       text-blue-400'>Assistant Name</span></h1>
 
@@ -51,4 +55,3 @@ const Customize2 = () => {
 }
 
 export default Customize2
-        
