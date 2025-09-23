@@ -1,11 +1,11 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect } from 'react'
 import { userDataContext } from '../context/UserContext'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
 const Home = () => {
 
-  const {userData, serverUrl, setUserData} = useContext(userDataContext)
+  const {userData, serverUrl, setUserData,getGeminiResponse} = useContext(userDataContext)
   const navigate = useNavigate()
 
   const handleLogOut = async () => {
@@ -19,6 +19,31 @@ const Home = () => {
       console.log(error)
     }
   }
+
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition 
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true,
+    recognition.lang = 'en-US'
+
+    recognition.onresult = async(e) =>{
+      const transcript = e.results[e.results.length-1][0].transcript.trim()
+      console.log("Heard: " + transcript)
+
+      if(transcript.toLowerCase().includes(userData.assistantName.toLowerCase())){
+        const data = await getGeminiResponse(transcript)
+        console.log(data)
+      }
+
+    }
+
+    recognition.start()
+  }, [])
+      
+
+  
 
 
   return (
