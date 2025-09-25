@@ -5,7 +5,7 @@ import axios from 'axios'
 
 const Home = () => {
 
-  const {userData, serverUrl, setUserData,getGeminiResponse} = useContext(userDataContext)
+  const {userData, serverUrl, setUserData, getGeminiResponse} = useContext(userDataContext)
   const navigate = useNavigate()
 
   const handleLogOut = async () => {
