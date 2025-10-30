@@ -1,4 +1,3 @@
-import { response } from "express";
 import geminiResponse from "../gemini.js";
 import User from "../models/user.model.js";
 import uploadOnCloudinary from './../config/cloudinary.js';
@@ -53,6 +52,7 @@ export const askToAssistant = async (req, res) => {
             return res.status(400).json({response:"sorry, i can't understand"})
         }
         const gemResult = JSON.parse(jsonMatch[0])
+        console.log(gemResult)
         const type = gemResult.type
 
         switch(type){
@@ -81,19 +81,18 @@ export const askToAssistant = async (req, res) => {
                     response: `current month is ${moment().format("MMMM")}`
                 });
             
-            case 'google_search':
-            case 'youtube_search':
-            case 'youtube_play':
+            case 'google-search':
+            case 'youtube-search':
+            case 'youtube-play':
             case 'general':
-            case 'calculator_open':
-            case 'instagram_open':
-            case 'facebook_open':
-            case 'whatsapp_open':
+            case 'calculator-open':
+            case 'instagram-open':
+            case 'facebook-open':
             case 'weather-show':
                 return res.json({
                     type,
                     userInput:gemResult.userInput,
-                    response:gemResult.response,
+                    response: gemResult.response,
                 });
             default:
                 return res.status(400).json({response: "I didn't understand that command."})
@@ -101,6 +100,6 @@ export const askToAssistant = async (req, res) => {
         }
 
     } catch (error) {
-        return res.status(500).json({response: "Ask assistant"})
+        return res.status(500).json({response: "Ask assistant error"})
     }
 }
