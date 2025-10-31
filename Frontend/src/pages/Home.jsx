@@ -2,15 +2,54 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import { userDataContext } from '../context/UserContext'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import aiGif from '../assets/ai.gif'
+import userGif from '../assets/user.gif'
 
 const Home = () => {
   const {userData, serverUrl, setUserData, getGeminiResponse} = useContext(userDataContext)
   const navigate = useNavigate()
   const [listening, setListening] = useState(false)
   const [assistantResponse, setAssistantResponse] = useState("")
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [currentGif, setCurrentGif] = useState("none") // "none", "user", "ai"
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [questionHistory, setQuestionHistory] = useState([])
+  const menuRef = useRef(null)
   const isSpeakingRef = useRef(false)
   const recognitionRef = useRef(null)
   const synth = window.speechSynthesis
+
+  // Load history from localStorage when component mounts
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('virtualAssistantHistory')
+    if (savedHistory) {
+      setQuestionHistory(JSON.parse(savedHistory))
+    }
+  }, [])
+
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('virtualAssistantHistory', JSON.stringify(questionHistory))
+  }, [questionHistory])
+
+  const clearHistory = () => {
+    setQuestionHistory([])
+    localStorage.removeItem('virtualAssistantHistory')
+  }
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleLogOut = async () => {
     try {
@@ -84,29 +123,57 @@ const Home = () => {
 
     // Set language based on content
     utterance.lang = isHindi ? 'hi-IN' : 'en-US'
-    
-    // Get available voices
-    const voices = synth.getVoices()
-    
-    if (isHindi) {
-      // For Hindi content, try to find female Hindi voice
-      const hindiVoice = voices.find(voice => 
-        voice.lang.includes('hi-IN') && voice.name.toLowerCase().includes('female'))
-      if (hindiVoice) {
-        utterance.voice = hindiVoice
-      }
-    } else {
-      // For English content, use default voice
-      const englishVoice = voices.find(voice => 
-        voice.lang.includes('en-US') || voice.lang.includes('en-GB'))
-      if (englishVoice) {
-        utterance.voice = englishVoice
-      }
+
+    // Helper: detect if assistant name is likely female
+    const isFemaleAssistant = () => {
+      const name = (userData?.assistantName || '').toString().toLowerCase().trim()
+      if (!name) return false
+      const femaleNames = ['mary','sarah','linda','emma','olivia','sophia','mia','isabella','ava','emily','anna','maria','neha','asha','anya','aya']
+      if (femaleNames.includes(name)) return true
+      // Simple heuristic: many female names end with 'a' or 'ah' or 'i'
+      if (/[a|e|i|y|ah]$/.test(name)) return true
+      return false
     }
 
+    const preferFemale = isFemaleAssistant()
+
+    // Get available voices
+    const voices = synth.getVoices()
+
+    // Choose candidate voices matching language
+    const candidates = voices.filter(v => {
+      const lang = (v.lang || '').toLowerCase()
+      if (isHindi) return lang.includes('hi')
+      return lang.includes('en')
+    })
+
+    // Names/substrings commonly found in female voices
+    const femaleVoiceHints = ['samantha','victoria','karen','amelia','olivia','sara','sarah','anna','emma','female']
+
+    let selectedVoice = null
+    if (preferFemale) {
+      selectedVoice = candidates.find(v => femaleVoiceHints.some(h => v.name.toLowerCase().includes(h)))
+      if (!selectedVoice) selectedVoice = candidates.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman'))
+    }
+
+    // Fallback selection
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => (v.lang || '').toLowerCase().includes(utterance.lang.toLowerCase()))
+      if (!selectedVoice) selectedVoice = candidates[0] || voices[0]
+    }
+
+    if (selectedVoice) utterance.voice = selectedVoice
+
     isSpeakingRef.current = true
+    setIsSpeaking(true)
+    setCurrentGif('ai') // Show AI speaking animation
+
     utterance.onend = () => {
       isSpeakingRef.current = false
+      setIsSpeaking(false)
+      // When assistant finishes, show user GIF and clear response text as per behavior
+      setCurrentGif('user')
+      setAssistantResponse('')
       // Only try to start recognition if it's not already running
       if (!listening) {
         try {
@@ -121,17 +188,25 @@ const Home = () => {
       }
     }
 
-    // Handle voice loading
+    // Handle voice loading (some browsers populate voices asynchronously)
     if (synth.getVoices().length === 0) {
       synth.addEventListener('voiceschanged', () => {
-        const updatedVoices = synth.getVoices()
-        if (isHindi) {
-          const hindiVoice = updatedVoices.find(voice => 
-            voice.lang.includes('hi-IN') && voice.name.toLowerCase().includes('female'))
-          if (hindiVoice) {
-            utterance.voice = hindiVoice
-          }
+        const updated = synth.getVoices()
+        const updatedCandidates = updated.filter(v => {
+          const lang = (v.lang || '').toLowerCase()
+          if (isHindi) return lang.includes('hi')
+          return lang.includes('en')
+        })
+        let updatedSelected = null
+        if (preferFemale) {
+          updatedSelected = updatedCandidates.find(v => femaleVoiceHints.some(h => v.name.toLowerCase().includes(h)))
+          if (!updatedSelected) updatedSelected = updatedCandidates.find(v => v.name.toLowerCase().includes('female'))
         }
+        if (!updatedSelected) {
+          updatedSelected = updated.find(v => (v.lang || '').toLowerCase().includes(utterance.lang.toLowerCase()))
+          if (!updatedSelected) updatedSelected = updatedCandidates[0] || updated[0]
+        }
+        if (updatedSelected) utterance.voice = updatedSelected
         synth.speak(utterance)
       }, { once: true })
     } else {
@@ -160,6 +235,8 @@ const Home = () => {
           recognition.start();
           console.log("Recognition request to start");
           setListening(true);
+          setCurrentGif("user"); // Show user speaking animation
+          setAssistantResponse(""); // Clear any previous response
         } catch (error) {
           if (error.name !== 'InvalidStateError') {
             console.log("Start error:", error);
@@ -172,8 +249,9 @@ const Home = () => {
       console.log("Recognition ended");
       setListening(false);
       
-      // Try to restart after 10 seconds if we're not speaking
+      // Keep showing user GIF if we're not speaking
       if (!isSpeakingRef.current) {
+        setCurrentGif("user");
         setTimeout(() => {
           safeRecognition();
         }, 10000);
@@ -193,6 +271,13 @@ const Home = () => {
     recognition.onresult = async (e) => {
       const transcript = e.results[e.results.length - 1][0].transcript.trim();
       console.log('Heard:', transcript);
+
+      // Add question to history with timestamp
+      const newQuestion = {
+        text: transcript,
+        timestamp: new Date().toLocaleString()
+      }
+      setQuestionHistory(prev => [newQuestion, ...prev])
 
       try {
         const data = await getGeminiResponse(transcript);
@@ -243,31 +328,144 @@ const Home = () => {
   }, [userData]);
 
   return (
-    <div className='w-full h-[100vh] bg-gradient-to-t from-[black] to-[#02023d] flex justify-center 
-    items-center flex-col gap-[15px]'>
-      <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold bg-white 
-          rounded-full text-[19px] absolute top-[20px] right-[20px] cursor-pointer' onClick={handleLogOut}>
-        Log Out
-      </button>
-      <button className='min-w-[150px] h-[60px] mt-[30px] text-black font-semibold bg-white 
-          rounded-full text-[19px] absolute top-[100px] right-[20px] cursor-pointer px-[20px] py-[10px]' 
-          onClick={()=>navigate("/customize")}>
-        Customize your Assistant
-      </button>
-      <div className='w-[300px] h-[400px] flex justify-center items-center overflow-hidden rounded-4xl 
-      shadow-lg'>
-        <img src={userData?.assistantImage} alt="" className='h-full object-cover'/>
+    <div className='w-full min-h-[100vh] bg-gradient-to-t from-[black] to-[#02023d] flex justify-center 
+    items-center flex-col gap-[15px] relative px-4'>
+      {/* Navigation buttons container - responsive positioning */}
+      <div className='fixed top-0 left-0 right-0 flex justify-end items-center w-full p-4 gap-2 
+        bg-gradient-to-b from-[#02023d] to-transparent z-10'>
+        <div className='flex flex-row gap-2 max-w-[1200px] px-2' ref={menuRef}>
+          <div className='relative'>
+            <button 
+              className='w-[35px] sm:w-[40px] md:w-[45px] 
+              h-[35px] sm:h-[40px] md:h-[45px] 
+              text-black font-semibold bg-white/90 
+              rounded-full text-[20px] sm:text-[24px] 
+              cursor-pointer transition-all hover:bg-white
+              flex items-center justify-center backdrop-blur-sm'
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              ☰
+            </button>
+            
+            {/* Dropdown Menu */}
+            {isMenuOpen && (
+              <div className='absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white/90 backdrop-blur-sm
+              ring-1 ring-black ring-opacity-5 divide-y divide-gray-300'>
+                <div className='py-1'>
+                  <button
+                    onClick={() => {
+                      navigate("/customize");
+                      setIsMenuOpen(false);
+                    }}
+                    className='w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 
+                    transition-colors'
+                  >
+                    Customize Assistant
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowHistory(true);
+                      setIsMenuOpen(false);
+                    }}
+                    className='w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 
+                    transition-colors'
+                  >
+                    View History
+                  </button>
+                </div>
+                <div className='py-1'>
+                  <button
+                    onClick={() => {
+                      handleLogOut();
+                      setIsMenuOpen(false);
+                    }}
+                    className='w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 
+                    transition-colors'
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-      <h1 className='text-white text-[18px] font-semibold'>I'm {userData?.assistantName}</h1>
-      <div className='flex flex-col items-center gap-2'>
-        <p className='text-white text-[16px]'>{listening ? '🎤 Listening...' : '🔄 Will try again in 10s'}</p>
-        
-        {/* Response Display */}
-        {assistantResponse && (
-          <h4 className='text-white text-[20px] font-medium text-center max-w-[800px] px-4'>
-            {assistantResponse}
-          </h4>
-        )}
+
+      {/* History Modal */}
+      {showHistory && (
+        <div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-20'
+          onClick={() => setShowHistory(false)}>
+          <div className='bg-white/95 rounded-2xl p-6 w-[90%] max-w-[600px] max-h-[80vh] overflow-hidden'
+            onClick={e => e.stopPropagation()}>
+            <div className='flex justify-between items-center mb-4'>
+              <h2 className='text-xl font-semibold'>Questions History</h2>
+              <div className='flex gap-2 items-center'>
+                <button 
+                  className='px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-full transition-colors'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    clearHistory()
+                  }}
+                >
+                  Clear History
+                </button>
+                <button 
+                  className='text-gray-500 hover:text-gray-700 text-2xl'
+                  onClick={() => setShowHistory(false)}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            
+            {questionHistory.length === 0 ? (
+              <div className='text-center text-gray-500 py-8'>
+                No questions in history yet
+              </div>
+            ) : (
+              <div className='space-y-3 overflow-y-auto max-h-[60vh] pr-2'>
+                {questionHistory.map((item, index) => (
+                  <div key={index} className='p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors'>
+                    <div className='flex justify-between items-start gap-4'>
+                      <p className='text-gray-800'>{item.text}</p>
+                      <span className='text-xs text-gray-500 whitespace-nowrap'>
+                        {item.timestamp}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Main content with top margin to account for fixed buttons */}
+      <div className='w-full max-w-[1200px] mt-[60px] sm:mt-[70px] md:mt-[80px] flex flex-col items-center'>
+        <div className='w-[280px] sm:w-[300px] h-[380px] sm:h-[400px] flex justify-center items-center 
+        overflow-hidden rounded-3xl sm:rounded-4xl shadow-lg'>
+          <img src={userData?.assistantImage} alt="" className='h-full w-full object-cover'/>
+        </div>
+        <h1 className='text-white text-[16px] sm:text-[18px] font-semibold mt-4'>
+          I'm {userData?.assistantName}
+        </h1>
+        {/* Animation between name and response */}
+        <div className='w-[80px] sm:w-[100px] h-[80px] sm:h-[100px] my-2'>
+          {currentGif === "ai" && (
+            <img src={aiGif} alt="AI Speaking" className='w-full h-full object-contain'/>
+          )}
+          {currentGif === "user" && (
+            <img src={userGif} alt="User Speaking" className='w-full h-full object-contain'/>
+          )}
+        </div>
+        <div className='flex flex-col items-center gap-2 px-4'>
+          {/* Response Display - only show when AI is speaking */}
+          {currentGif === "ai" && assistantResponse && (
+            <h4 className='text-white text-[16px] sm:text-[18px] md:text-[20px] font-medium text-center 
+            max-w-full sm:max-w-[600px] md:max-w-[800px]'>
+              {assistantResponse}
+            </h4>
+          )}
+        </div>
       </div>
     </div>
   )
